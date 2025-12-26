@@ -2,6 +2,5 @@
 __pycache__/
 *.pyc
 .DS_Store
-model.joblib
 EOF
 .streamlit/secrets.toml
