@@ -314,6 +314,88 @@ with tab2:
                 st.dataframe(cm_df, use_container_width=True)
     else:
         st.info("Train/load the model to see model health.")
+    st.markdown("### Explain a prediction (why did the model choose that class?)")
+
+if "predicted_class" not in df.columns:
+    st.info("No predictions available. Make sure model.joblib is loaded and you fetched recalls.")
+else:
+    # Use whichever df you're currently showing (df = current fetched page)
+    explain_df = df.dropna(subset=["reason_for_recall", "product_description"]).copy()
+    if explain_df.empty:
+        st.info("No rows with text available to explain.")
+    else:
+        # Pick a row to explain
+        explain_df = explain_df.reset_index(drop=True)
+        row_idx = st.number_input("Row index to explain", min_value=0, max_value=len(explain_df) - 1, value=0, step=1)
+
+        row = explain_df.loc[int(row_idx)]
+        text = (str(row.get("reason_for_recall", "")) + " " + str(row.get("product_description", ""))).strip()
+
+        st.write("**Actual class:**", row.get("classification"))
+        st.write("**Predicted class:**", row.get("predicted_class"))
+        if "confidence" in row:
+            st.write("**Confidence:**", row.get("confidence"))
+
+        with st.expander("Show raw text used for the model"):
+            st.write(text)
+
+        # ---- Core explainability logic ----
+        try:
+            # model is a Pipeline saved by joblib: ("tfidf", TfidfVectorizer), ("clf", LogisticRegression)
+            tfidf = model.named_steps["tfidf"]
+            clf = model.named_steps["clf"]
+
+            X_vec = tfidf.transform([text])  # shape (1, n_features), sparse
+            feature_names = tfidf.get_feature_names_out()
+
+            classes = list(clf.classes_)
+            pred_label = row.get("predicted_class")
+            if pred_label not in classes:
+                st.warning("Predicted label not found in model classes. Can't explain.")
+            else:
+                class_idx = classes.index(pred_label)
+
+                # contributions per feature for this class: x_i * w_i
+                # X_vec is sparse; use only nonzeros
+                coefs = clf.coef_[class_idx]  # shape (n_features,)
+                nz = X_vec.nonzero()[1]       # indices of nonzero features in this row
+
+                contrib = (X_vec[0, nz].toarray().ravel()) * coefs[nz]
+                terms = feature_names[nz]
+
+                # Top positive (pushes toward predicted class)
+                top_pos_idx = np.argsort(contrib)[-15:][::-1]
+                # Top negative (pushes away from predicted class)
+                top_neg_idx = np.argsort(contrib)[:15]
+
+                pos_df = pd.DataFrame({
+                    "term": terms[top_pos_idx],
+                    "contribution": contrib[top_pos_idx]
+                })
+
+                neg_df = pd.DataFrame({
+                    "term": terms[top_neg_idx],
+                    "contribution": contrib[top_neg_idx]
+                })
+
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write("**Top terms pushing *toward* predicted class**")
+                    st.dataframe(pos_df, use_container_width=True)
+                with c2:
+                    st.write("**Top terms pushing *away* from predicted class**")
+                    st.dataframe(neg_df, use_container_width=True)
+
+                st.caption(
+                    "Contribution ≈ TF-IDF(feature) × LogisticRegression weight for the predicted class. "
+                    "Bigger positive means stronger evidence for that class (given this model)."
+                )
+
+        except KeyError:
+            st.warning("Expected a Pipeline with steps named 'tfidf' and 'clf'. Can't explain with current model object.")
+        except Exception as e:
+            st.warning(f"Explanation failed: {e}")
+
 
 
 with tab3:
