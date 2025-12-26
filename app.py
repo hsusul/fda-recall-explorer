@@ -314,7 +314,7 @@ with tab2:
                 st.dataframe(cm_df, use_container_width=True)
     else:
         st.info("Train/load the model to see model health.")
-    st.markdown("### Explain a prediction (why did the model choose that class?)")
+    st.markdown("### Explain a prediction")
 
 if "predicted_class" not in df.columns:
     st.info("No predictions available. Make sure model.joblib is loaded and you fetched recalls.")
@@ -380,10 +380,10 @@ else:
 
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.write("**Top terms pushing *toward* predicted class**")
+                    st.write("**Top terms pushing toward predicted class**")
                     st.dataframe(pos_df, use_container_width=True)
                 with c2:
-                    st.write("**Top terms pushing *away* from predicted class**")
+                    st.write("**Top terms pushing away from predicted class**")
                     st.dataframe(neg_df, use_container_width=True)
 
                 st.caption(
