@@ -2,7 +2,7 @@ import os
 import requests
 import pandas as pd
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -89,13 +89,6 @@ def main():
     print("Raw df shape:", df.shape)
 
 
-    # Save CSV during training
-    DATA_DIR.mkdir(exist_ok=True)
-    df.to_csv(DATA_PATH, index=False)
-    print(f"Saved training data -> {DATA_PATH}")
-
-
-
     # Drop rows missing the label
     df = df.dropna(subset=["classification"])
     X, y = make_xy(df)
@@ -115,13 +108,28 @@ def main():
     )
 
     # ML pipeline = text -> numbers -> classifier
-    model = Pipeline([
-        ("tfidf", TfidfVectorizer(stop_words="english")),
+    pipe = Pipeline([
+        ("tfidf", TfidfVectorizer(
+            stop_words="english",
+            ngram_range=(1, 2),   # unigrams + bigrams
+            min_df=2,             # ignore super-rare terms
+            max_features=50000
+        )),
         ("clf", LogisticRegression(max_iter=2000))
     ])
 
-    model.fit(X_train, y_train)
+    param_grid = {
+        "clf__C": [0.3, 1.0, 3.0, 10.0]
+    }
+
+    gs = GridSearchCV(pipe, param_grid=param_grid, cv=3, n_jobs=-1)
+    gs.fit(X_train, y_train)
+
+    model = gs.best_estimator_
+    print("BEST PARAMS:", gs.best_params_)
+
     preds = model.predict(X_test)
+
 
     print("\nAccuracy:", accuracy_score(y_test, preds))
     print("\nConfusion Matrix:\n", confusion_matrix(y_test, preds))
