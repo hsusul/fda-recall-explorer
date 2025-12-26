@@ -1,18 +1,23 @@
-# FDA Recall Explorer (openFDA) + ML Classifier
+# FDA Recall Explorer (openFDA) + ML
 
-A Streamlit web app that pulls FDA drug recall records from the openFDA API and uses an ML model to predict recall classification (Class I / II / III) from recall text.
+Streamlit web app that pulls FDA drug recall records from the openFDA API and uses an ML model to predict recall classification (Class I / II / III) from recall text.
+
+## Demo
+- Live app: https://fdarecallexplorer.streamlit.app/
 
 ## Features
 - Search recalls by keyword (product description / generic name / recall reason)
-- Filter by status, actual classification, model confidence, mismatches
+- Filters: status, classification, confidence, mismatches
 - Trend chart over time (monthly)
-- ML predictions + “explain prediction” (top TF-IDF terms contributing to predicted class)
+- ML predictions: predicted class + confidence + match
+- Explain prediction: top TF-IDF terms driving the predicted class
 
-## Tech Stack
-- Python, Streamlit
-- openFDA API (`/drug/enforcement.json`)
-- scikit-learn: TF-IDF + Logistic Regression (tuned with GridSearchCV)
-- pandas, matplotlib
+## ML (How it works)
+- Input text = `reason_for_recall + product_description`
+- Vectorizer = TF-IDF (unigrams + bigrams)
+- Model = Logistic Regression (multi-class)
+- Tuning = GridSearchCV over `C`
+- Output = predicted class + confidence (max probability)
 
 ## Run locally
 ```bash
