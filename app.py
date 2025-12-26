@@ -78,16 +78,17 @@ st.set_page_config(page_title="FDA Recall Explorer", layout="wide")
 st.title("FDA Drug Recall Explorer (openFDA)")
 
 def get_api_key(sidebar_value: str) -> str | None:
-    sidebar_value = (sidebar_value or "").strip()
-    # treat placeholder as "no key"
-    if sidebar_value and sidebar_value != "YOUR_KEY_HERE":
-        return sidebar_value
-    # fallback to Streamlit secrets
-    secret = st.secrets.get("OPENFDA_API_KEY", None)
-    if secret and secret != "YOUR_KEY_HERE":
-        return secret
-    return None
+    # 1) sidebar has priority
+    v = (sidebar_value or "").strip()
+    if v and v.upper() not in {"YOUR_KEY_HERE", "NONE", "NULL"}:
+        return v
 
+    # 2) fall back to secrets (also stripped)
+    s = (st.secrets.get("OPENFDA_API_KEY", "") or "").strip()
+    if s and s.upper() not in {"YOUR_KEY_HERE", "NONE", "NULL"}:
+        return s
+
+    return None
 
 with st.sidebar:
     st.header("Query")
@@ -102,6 +103,16 @@ with st.sidebar:
         submitted = st.form_submit_button("Fetch recalls")
 
 api_key = get_api_key(api_key_input)
+secret_present = bool((st.secrets.get("OPENFDA_API_KEY", "") or "").strip())
+typed_present = bool((api_key_input or "").strip())
+
+if typed_present:
+    st.sidebar.caption("API key source: sidebar")
+elif secret_present:
+    st.sidebar.caption("API key source: Streamlit secrets")
+else:
+    st.sidebar.caption("API key source: none (unauthenticated)")
+
 
 st.caption(
     "Data source: openFDA drug enforcement reports API (recall data). "
